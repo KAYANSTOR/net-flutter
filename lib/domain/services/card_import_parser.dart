@@ -30,6 +30,7 @@ abstract final class CardImportParser {
     final drafts = <CardImportDraft>[];
     final errors = <String>[];
     final seen = <String>{};
+    final seenSecrets = <String>{};
     final lines = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
 
     for (var i = 0; i < lines.length; i++) {
@@ -70,7 +71,12 @@ abstract final class CardImportParser {
         errors.add('سطر $lineNo: تكرار الرقم التسلسلي $serial');
         continue;
       }
+      if (seenSecrets.contains(secret)) {
+        errors.add('سطر $lineNo: تكرار الرمز السري');
+        continue;
+      }
       seen.add(serial);
+      seenSecrets.add(secret);
       drafts.add(CardImportDraft(serialNumber: serial, secretCode: secret));
     }
 
