@@ -209,17 +209,24 @@ final class UnifiedPaymentEventEngine implements PaymentEventEngine {
     return Failure((processResult as Failure<Transaction>).error);
   }
 
-  /// يحفظ رسالة **مرفوضة** عندما تفشل حدود الثقة في المصدر (رقم غير مهيّأ،
-  /// نقطة بيع بلا قالب نشط، أو قالب لا يخص المصدر).
+  /// يحفظ رسالة **مرفوضة** عندما تفشل حدود الثقة في المصدر لسبب **يخص مصدراً
+  /// أنشأه المشغّل بنفسه** (نقطة بيع نشطة بلا قالب مرتبط، قالب لا يخص
+  /// المصدر) — هذه حالات تشخيصية مفيدة، فتُحفظ ليراها المشغّل ويصلحها.
   ///
-  /// قبل ذلك كانت هذه الحالات تُرجع فشلًا بلا أي أثر محفوظ، فلا تظهر الرسالة
-  /// في «المعلّقة» ولا في «المرفوضة» ولا في أي تقرير — وهو ما يجعل الحالة
-  /// الميدانية غير قابلة للتفسير للمشغّل. الآن تُحفَظ بنفس بصمة منع التكرار
-  /// فلا تتكرر عند وصول نفس الرسالة مرة أخرى، وبلا أي عمل دفتري.
+  /// أما حين يكون السبب `RejectionCodes.unknownSender` — أي أن المُرسل لا
+  /// يطابق أي محفظة نشطة ولا أي نقطة بيع نشطة مضافة في النظام أصلاً — فهذه
+  /// رسالة من جهة خارج نطاق النظام تماماً (رسالة شخصية، رمز تحقق، إلخ)،
+  /// ولا تُحفظ ولا يُسجَّل لها أي أثر: لا صف في قاعدة البيانات ولا سجل
+  /// تدقيق ولا ظهور في أي شاشة. هذا هو الحد الفاصل بين «مصدر معروف لديك
+  /// لكنه معطّل الآن» (يُحفظ) و«مصدر لا علاقة له بنظامك إطلاقاً» (يُتجاهل).
   Future<Result<Transaction?>> _rejectUnauthorized(
     PaymentEvent event,
     AppFailure failure,
   ) async {
+    if (failure.code == RejectionCodes.unknownSender) {
+      return Failure(failure);
+    }
+
     final provisional = event.toProvisionalMessage(id: ids.next('msg'));
     final fingerprint = fingerprints.compute(event: event, parsed: null);
     final existing = await messages.findByExternalReference(fingerprint.key);

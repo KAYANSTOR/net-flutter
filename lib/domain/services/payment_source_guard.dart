@@ -3,6 +3,7 @@ import '../entities/message.dart';
 import '../entities/payment_event.dart';
 import '../entities/pos_account.dart';
 import '../entities/wallet.dart';
+import '../rejection_codes.dart';
 import '../repositories/repositories.dart';
 import 'local_payment_source_registry.dart';
 import 'local_pos_account_registry.dart';
@@ -40,7 +41,7 @@ final class PaymentSourceGuard {
       final pos = (posResult as Success<PosAccount?>).value;
       if (pos != null) {
         if (pos.status != PointOfSaleStatus.active) {
-          return const Failure(AppFailure(code: 'untrusted_payment_source', message: 'Point of sale is not active'));
+          return const Failure(AppFailure(code: RejectionCodes.unknownSender, message: 'Point of sale is not active'));
         }
         final posTemplates = allTemplates.where((t) => t.isActive && t.posId == pos.posId).toList(growable: false);
         if (posTemplates.isEmpty) {
@@ -74,7 +75,7 @@ final class PaymentSourceGuard {
       final package = event.packageName?.trim();
       if (package == null || package.isEmpty) {
         return const Failure(AppFailure(
-          code: 'untrusted_payment_source',
+          code: RejectionCodes.unknownSender,
           message: 'Notification source is not configured',
         ));
       }
@@ -94,7 +95,7 @@ final class PaymentSourceGuard {
 
     if (wallet == null) {
       return const Failure(AppFailure(
-        code: 'untrusted_payment_source',
+        code: RejectionCodes.unknownSender,
         message: 'Payment source is not linked to an active configured wallet',
       ));
     }
